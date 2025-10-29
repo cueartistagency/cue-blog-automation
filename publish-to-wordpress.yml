@@ -1,0 +1,40 @@
+name: Publish blog posts to WordPress
+
+on:
+  push:
+    branches: [ main ]
+    # Only trigger when Markdown files in the posts directory are changed
+    paths:
+      - 'content/posts/*.md'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed post files
+        id: changes
+        run: |
+          # Capture changed files between commits
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} > changed.txt
+          echo "CHANGED_FILES=$(cat changed.txt)" >> $GITHUB_ENV
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm i gray-matter remark remark-html node-fetch@2
+
+      - name: Publish to WordPress
+        env:
+          WP_URL: ${{ secrets.WP_URL }}
+          WP_USER: ${{ secrets.WP_USER }}
+          WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
+          CHANGED_FILES: ${{ env.CHANGED_FILES }}
+          POSTS_DIR: content/posts
+        run: node scripts/publish-to-wp.js
